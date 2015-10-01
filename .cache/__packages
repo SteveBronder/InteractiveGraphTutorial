@@ -8,3 +8,7 @@ rcstatebin
 reshape2
 data.table
 knitr
+base64enc
+stargazer
+microbenchmark
+pryr
