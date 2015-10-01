@@ -1,0 +1,10 @@
+base
+slidify
+devtools
+rCharts
+rMaps
+htmlwidgets
+rcstatebin
+reshape2
+data.table
+knitr
