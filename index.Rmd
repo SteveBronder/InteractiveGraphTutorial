@@ -131,7 +131,7 @@ stargazer::stargazer(fit.1,type = "html",
 ### Describing the Language
 ##### informal and formal OO systems available
 
-```{r, class="fragment"}
+```{r}
 library(pryr)
 
 # make a generic class and throw random things into it
@@ -147,7 +147,9 @@ foo$deposit <- function(x){
 foo$withdraw(10)
 foo$deposit(1000)
 foo$balance
+
 otype(foo)
+
 ```
 
 
@@ -176,6 +178,7 @@ a$deposit(100)
 a$balance
 a$lottery <- "Insert winning lottery numbers here"
 otype(a)
+
 ```
 
 
@@ -281,7 +284,7 @@ rm(dat)
 
 ### Example: Displaying Data
 
-```{r hiddendataTableEx, cache=FALSE,echo=FALSE,warning=FALSE,message=FALSE}
+```{r hiddendataTableEx, cache=FALSE,eval=FALSE,echo=FALSE,warning=FALSE,message=FALSE}
 setnames(dat.means,"V1","payments")
 colnames(dat.means) <- c("state","payments")
 ```
@@ -295,7 +298,7 @@ cat('<iframe src="dat.means.html"style="border: none; width: 1200px; height: 100
 ***
 
 ### Example: Cleaning Data
-```{r dataTableExample3, cache=TRUE,cache.lazy = FALSE,warning=FALSE}
+```{r dataTableExample3,eval=FALSE, cache=TRUE,cache.lazy = FALSE,warning=FALSE}
 dim(dat.means)
 # Set keys
 setkey(dat.means, state)
@@ -307,7 +310,7 @@ dat.means <- dat.means[nzchar(state)]
 ***
 
 ### Example: Making Interactive
-```{r dataTableExample5, cache = FALSE,cache.lazy = FALSE,warning=FALSE, comment = NA,results='asis',error=FALSE}
+```{r dataTableExample5,eval=FALSE, cache = FALSE,cache.lazy = FALSE,warning=FALSE, comment = NA,results='asis',error=FALSE}
 library(rMaps)
 library(htmlwidgets)
 library(rcstatebin)
@@ -316,7 +319,7 @@ map <- statebin(as.data.frame(dat.means), payments ~ state,
                 footer = "<small>Data comes from openpaymentsdata.cms.gov</small>",
                 type = "hex")
 
-saveWidget(map,"mean_states.html", selfcontained = FALSE)
+saveWidget(map,"meanstates.html", selfcontained = FALSE)
 
 
 ```
@@ -345,7 +348,7 @@ library(rCharts)
 library(knitr)
 #read in csv
 tobacco <- fread(
-  "C:/Users/SBronder/Documents/Projects/prettyGraphs/tobacco.csv",header=TRUE)
+  "/home/steve/Documents/prettyGraphs/InteractiveGraphTutorial/tobacco.csv",header=TRUE)
 # Source:
 # https://research.stlouisfed.org/fred2/series/M0188AUSM149NNBR
 
@@ -363,7 +366,7 @@ library(rCharts)
 library(knitr)
 #read in csv
 tobacco <- fread(
-  "C:/Users/SBronder/Documents/Projects/prettyGraphs/tobacco.csv",header=TRUE)
+  "/home/steve/Documents/prettyGraphs/InteractiveGraphTutorial/tobacco.csv",header=TRUE)
 # Source:
 # https://research.stlouisfed.org/fred2/series/M0188AUSM149NNBR
 
@@ -445,175 +448,6 @@ knit_hooks$set(document = hook2)
 
 <iframe src="https://johnricco.shinyapps.io/metro_walksheds/" style="border: none; width: 1200px; height: 900px"></iframe>
 
-
----  .class &vertical 
-
-## Natural Language Processing
-
-
-```{r real_stuff,cache=FALSE,echo=FALSE}
-library(tm)
-library(slam)
-library(wordcloud)
-library(stm)
-library(LDAvis)
-docsDowntown <- read.csv("Z:/BAGroup/Share/SBronder/prettyGraphs_old/Pens_Tweets_Downtown_Pgh.csv",header=TRUE,sep=",",
-                         fileEncoding= "native.enc",stringsAsFactors = FALSE)
-
-docsDowntown$text <- gsub("â€","",docsDowntown$text)
-docsDowntown$text <- gsub("â","",docsDowntown$text)
-docsDowntown$text <- gsub("\n","",docsDowntown$text)
-docsDowntown$text <- gsub("-"," to ",docsDowntown$text)
-docsDowntown$text <- gsub("&gt;",">",docsDowntown$text)
-docsDowntown$text <- gsub("&lt;","<",docsDowntown$text)
-docsDowntown$text <- gsub("\\", "", docsDowntown$text,fixed=TRUE)
-
-corpus <- VCorpus(VectorSource(docsDowntown$text))
-
-twt_dtm <- DocumentTermMatrix(corpus , control = list(stemming = TRUE, minWordLength = 1, removePunctuation = TRUE))
-
-twt_dtm <- twt_dtm[,which(colnames(twt_dtm) != "fuck")]
-twt_dtm <- twt_dtm[,which(colnames(twt_dtm) != "damn")]
-twt_dtm <- twt_dtm[,which(colnames(twt_dtm) != "hell")]
-twt_dtm <- twt_dtm[,which(colnames(twt_dtm) != "shit")]
-
-
-
-twt_dtm <- DocumentTermMatrix(corpus , control = list(stemming = TRUE, minWordLength = 1, removePunctuation = TRUE))
-
-
-term_tfidf <- tapply(twt_dtm$v/row_sums(twt_dtm)[twt_dtm$i], twt_dtm$j, mean) *
-  log2(nDocs(twt_dtm)/col_sums(twt_dtm > 0))
-
-
-
-twt_dtms <- twt_dtm[, term_tfidf >= 1]
-twt_dtms <- twt_dtms[row_sums(twt_dtms) > 0,]
-
- 
-
-
-```
-
-> - The application of statistical modeling to unstructured text data (Corpora)
-> - Use: Grouping documents, search, inference prediction
-
-***
-
-### NLP: Data Structure
-
-> - Corpus - Collection of text with similar attributes
-> - Document Term Matrix: Word counts per document
->   * Rows: Documents
->   * Columns: Words
-
-***
-
-### NLP: Making Corpus
-
-```{r grab_data,eval=FALSE}
-# Read in csv
-docsDowntown <- read.csv("Z:/BAGroup/Share/SBronder/prettyGraphs_old/Pens_Tweets_Downtown_Pgh.csv",header=TRUE,sep=",",
-                         fileEncoding= "native.enc",stringsAsFactors = FALSE)
-
-# Create corpus
-corpus <- VCorpus(VectorSource(docsDowntown$text))
-
-# Create Document Term Matrix + cleaning
-twt_dtm <- DocumentTermMatrix(corpus , control = list(stemming = TRUE,
-                                                      minWordLength = 1,
-                                                      removePunctuation = TRUE))
-
-```
- 
-***
-
-### NLP: Cleaning
-
-> - Stemming
-> - Bagging
-> - Stop words?
-<ul class='incremental'>
-  <li class='fragment'>Maybe not</li>
-  <li class='fragment'>He is the king of Spain</li>
-  <li class='fragment'>He and the king are from Spain</li>
-  <li class='fragment'> Rm Stops: "he king Spain"</li>
-</ul>
-
-
-
-***
-
-### NLP: TFIDF
-<ul class='incremental'>
-  <li class='fragment'>Term Frequency-Inverse Document Frequency</li>
-  <li class='fragment'>Most common words across documents</li>
-</ul>
-  
-```{r clean,eval=FALSE}
-
-# Create term frequency-inverse document frequency 
-term_tfidf <- tapply(twt_dtm$v/row_sums(twt_dtm)[twt_dtm$i], twt_dtm$j, mean) *
-  log2(nDocs(twt_dtm)/col_sums(twt_dtm > 0))
-
-```
-
-```{r term_charts, cache=FALSE,warning=FALSE,echo=FALSE,results='asis'}
-stargazer::stargazer(as.data.frame(term_tfidf),type='html',flip = TRUE)
-```
-
-***
-
-### NLP: TF-IDF Scores
-```{r densityPlot,cache=FALSE,echo=FALSE,results='asis',comment=NA}
- term_density <- density(term_tfidf)
- term_density <- data.frame(x= term_density$x, y = term_density$y)
- term_density$Var <- "tf-idf"
- dens <- nPlot(x = "x", y = "y", data = term_density, type = "lineChart")
- dens$chart(tooltipContent = "#! function(key, x, y){ 
-            return 'x: ' + x 
-              } !#")
- dens$show('inline',include_assets=TRUE,standalone= TRUE)
-```
-
-```{r returnDTMFake,cache=FALSE,eval=FALSE}
-# Only take words with a score > 1 and whose rows sum to zero
-twt_dtms <- twt_dtm[, term_tfidf >= 1]
-twt_dtms <- twt_dtms[row_sums(twt_dtms) > 0,]
-summary(col_sums(twt_dtms))
-```
-
-***
-
-### NLP: WordClouds
-
-```{r wordcloud,cache=FALSE,results='asis',comment=NA}
-# Return frequency table for words showing up
-freq <- sort(col_sums(twt_dtms, decreasing = F))
-wordcloud(names(freq), freq, max.words=100,
-          min.freq = 80,colors=brewer.pal(6, "Dark2"))
-```
-
-***
-
-### NLP: Correlations between words
-
-```{r corrText,cache=FALSE}
-plot(twt_dtms,terms=findFreqTerms(twt_dtms, lowfreq=220)[1:20],corThreshold=0.001)
-```
-
---- .class &vertical 
-
-### NLP: Topic Models
-
-> - NLP model for finding abstract "topics" that occur in a corpus
-<ul class='incremental'>
-  <li class='fragment'>Soft clustering technique</li>
-  <li class='fragment'>Helps classify unstructured data</li>
-  <li class='fragment'>Many unanswered questions</li>
-</ul>
-
-***
 
 ### NLP: Graph for topic model
 [Link if iframe is broken](http://bl.ocks.org/Stevo15025/raw/d1f5a9ccbb36784ac9e2/#topic=0&lambda=1&term=now)
