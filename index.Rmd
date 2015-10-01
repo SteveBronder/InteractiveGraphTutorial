@@ -1,0 +1,633 @@
+---
+title       : Pretty Graphs in R
+subtitle    : A Realistic Approach
+author      : Steve Bronder
+job         : Marketing Analyst 
+framework   : revealjs        # {io2012, html5slides, shower, dzslides, ...}
+highlighter : highlight.js  # {highlight.js, prettify, highlight}
+hitheme     : github      # 
+widgets     : []            # {mathjax, quiz, bootstrap}
+mode        : selfcontained # {standalone, draft}
+knit        : slidify::knit2slides
+ext_widgets: {rCharts: "libraries/highcharts"}
+revealjs:
+  theme: Simple
+--- 
+
+### Pretty Graphs in R
+
+
+ A Realistic Approach
+ \- Steve Bronder
+
+--- 
+
+### Outline
+
+<ul class='incremental'>
+  <li class='fragment'>What is R?</li>
+  <li class='fragment'>Why and why not R?</li>
+  <li class='fragment'>Describing the Language</li>
+  <li class='fragment'>Data manipulation examples</li>
+  <li class='fragment'>Pretty graph examples</li>
+  <li class='fragment'>NLP in R</li>
+  <li class='fragment'>Learning Resources</li>
+</ul>
+
+---
+
+### What is R?
+
+<ul class='incremental'>
+  <li class='fragment'>Statistical language for data analysis</li>
+    <li class='fragment'>Simple and effective language </li>
+  <li class='fragment'>Can talk to Python, Julia, C, C++, HTML, CSS, etc.</li>
+  <li class='fragment'>Extended by user contributions</li>
+</ul>
+
+
+---  .class &vertical 
+
+### Why useR?
+
+
+
+<ul class='incremental'>
+  <li class='fragment'>Created by Statisticians</li>
+  <li class='fragment'>Strong Community</li>
+  <li class='fragment'>Being lazy. work smart and efficient</li>
+  <li class='fragment'>Easy to prototype and make actionable</li>
+  <li class='fragment'>Nothing beats R in Graphics</li>
+</ul>
+
+
+<script>
+$('ul.incremental li').addClass('fragment')
+$('ol.incremental li').addClass('fragment')
+</script>
+
+***
+
+### Why notR?
+
+<ul class='incremental'>
+  <li class='fragment'>Created by Statisticians</li>
+  <li class='fragment'>Sharp learning curve</li>
+  <li class='fragment'>No more point and clicking</li>
+  <li class='fragment'>Funky syntax</li>
+   <li class='fragment'>Poorly written R code is terribly slow</li>
+</ul>
+
+
+<script>
+$('ul.incremental li').addClass('fragment')
+$('ol.incremental li').addClass('fragment')
+</script>
+
+***
+
+### Fast and Slow R Code
+
+```{r fastnSlow,cache=FALSE}
+
+library(microbenchmark)
+
+x <- runif(100)
+microbenchmark(
+  sqrt(x),
+  x ^ 0.5
+)
+```
+
+
+--- .class &vertical 
+
+### Describing the Language
+##### Everything is a function
+
+```{r,cache=FALSE, class="fragment"}
+1 + 1
+`+`(1,1)
+```
+
+
+***
+
+### Describing the Language
+##### Make Statistics Easy
+
+```{r,cache=FALSE,results='asis'}
+data(iris)
+fit.1 <- lm(Sepal.Length ~ Petal.Length + Species, data = iris)
+```
+
+```{r,cache=FALSE,results='asis',echo=FALSE}
+stargazer::stargazer(fit.1,type = "html",
+          single.row = TRUE,font.size="small",title = "Regression Results",notes="")
+```
+
+---  .class &vertical 
+
+### Describing the Language
+##### informal and formal OO systems available
+
+```{r, class="fragment"}
+library(pryr)
+
+# make a generic class and throw random things into it
+foo <- structure(list(), class = "foo")
+foo$balance <- 100
+foo$withdraw <- function(x){
+  foo$balance <<- foo$balance - x
+}
+foo$deposit <- function(x){
+  foo$balance <<- foo$balance + x
+}
+
+foo$withdraw(10)
+foo$deposit(1000)
+foo$balance
+otype(foo)
+```
+
+
+*** 
+
+### Describing the language
+##### informal and formal OO systems available
+
+```{r refstuff,cache=FALSE}
+library(methods)
+# make a formal RC class
+Accounts <- setRefClass("Accounts",
+  fields = list(balance = "numeric"),
+  methods = list(
+    withdraw = function(x) {
+      balance <<- balance - x
+    },
+    deposit = function(x) {
+      balance <<- balance + x
+    }
+  )
+)
+
+a <- Accounts$new(balance = 100)
+a$deposit(100)
+a$balance
+a$lottery <- "Insert winning lottery numbers here"
+otype(a)
+```
+
+
+--- .class &vertical 
+
+### Data manipulation in R
+##### data.table Objective
+
+<ol class='incremental'>
+  <li class='fragment'>Develop light, SQL style data manipulation language in R.</li>
+    <li class='fragment'>Fast, readable, consistent </li>
+</ol>
+
+
+***
+
+### Data manipulation in R
+
+- Create bins by flower type for sepal length
+
+```{r, cache=FALSE, class = 'fragment'}
+library(reshape2)
+data(iris)
+head(iris)
+iris$cut.sepal <- melt(vapply(split(iris$Sepal.Length,iris$Species),
+                   function(x) cut(x,5),vector(mode = "integer", length=50)))$value
+head(iris,n=5)
+```
+
+***
+
+### Data manipulation in R
+##### data.table Answer
+
+  `data[i , j, by]`
+
+| Syntax  | SQL     | Meaning             | Example                         |
+| ------- |:-------:|:-------------------:| -------------------------------:|
+| i       |WHERE    | subset rows by i    | price > 0                       |
+| j       |SELECT   | using column j      | logPrice := log(price)          |
+| by      |GROUP-BY | grouped by          | by = store                      |
+
+```{r,cache=FALSE, echo=FALSE}
+iris$cut.sepal <- NULL
+```
+
+```{r,cache=FALSE}
+iris <- data.table(iris)
+iris[Petal.Width >=.2 , cut.sepal := as.integer(cut(Sepal.Length, 5)), by = Species]
+```
+
+--- .class &vertical
+
+### Example: Cleaning Data
+General Payment Dataset:
+> - All general payments made to physicians and hospitals 
+> - Recipients name, address, and specialty, payment, and "nature of payment", etc.
+> - 2.6 million by 63 variables
+
+```{r dataTableExample, cache = FALSE,cache.lazy = FALSE,warning=FALSE}
+library(data.table, quietly =  TRUE,warn.conflicts = FALSE)
+dat <- fread("/home/steve/Documents/OP_DTL_GNRL_PGYR2013_P06302015.csv")
+```
+***
+
+### Example: Aggregation
+
+```{r dataTableExample2Fake, cache=FALSE,cache.lazy = FALSE,warning=FALSE,eval=FALSE}
+#Remove $ sign from Dollars column
+  dat[ , Total_Amount_of_Payment_USDollars := as.numeric(substring(Total_Amount_of_Payment_USDollars,2))]
+
+# Set the key variable for taking unique values
+setkey(dat, Recipient_State)
+
+#Get the averages for each state
+  dat.means <- unique(dat[, mean(Total_Amount_of_Payment_USDollars,
+                                           na.rm = TRUE),by = Recipient_State])
+```
+
+<!---
+This actually runs
+-->
+```{r dataTableExample2, cache=FALSE,cache.lazy = FALSE,warning=FALSE}
+#Remove $ sign from Dollars column
+invisible(
+  dat[ , Total_Amount_of_Payment_USDollars := as.numeric(substring(Total_Amount_of_Payment_USDollars,2))]
+  )
+
+# Set the key variable for taking unique values
+setkey(dat, Recipient_State)
+
+#Get the averages for each state
+system.time(
+  dat.means <- unique(dat[, mean(Total_Amount_of_Payment_USDollars,
+                                           na.rm = TRUE),by = Recipient_State])
+  )
+rm(dat)
+```
+
+
+
+***
+
+### Example: Displaying Data
+
+```{r hiddendataTableEx, cache=FALSE,echo=FALSE,warning=FALSE,message=FALSE}
+setnames(dat.means,"V1","payments")
+colnames(dat.means) <- c("state","payments")
+```
+
+```{r dataTableExample4, cache = FALSE,warning=FALSE,echo=FALSE,comment=NA,results='asis'}
+dat.meansDT <- DT::datatable(dat.means)
+DT::saveWidget(dat.meansDT, 'dat.means.html')
+cat('<iframe src="dat.means.html"style="border: none; width: 1200px; height: 1000px"></iframe>')
+```
+
+***
+
+### Example: Cleaning Data
+```{r dataTableExample3, cache=TRUE,cache.lazy = FALSE,warning=FALSE}
+dim(dat.means)
+# Set keys
+setkey(dat.means, state)
+dat.means <- dat.means[!c("AA","AE","PR","VI","ON","AP","GU")]
+dat.means <- dat.means[nzchar(state)]
+
+```
+
+***
+
+### Example: Making Interactive
+```{r dataTableExample5, cache = FALSE,cache.lazy = FALSE,warning=FALSE, comment = NA,results='asis',error=FALSE}
+library(rMaps)
+library(htmlwidgets)
+library(rcstatebin)
+map <- statebin(as.data.frame(dat.means), payments ~ state,
+                heading = "<b>Average Payment from Pharmaceutical Companies to Doctors By State</b>",
+                footer = "<small>Data comes from openpaymentsdata.cms.gov</small>",
+                type = "hex")
+
+saveWidget(map,"mean_states.html", selfcontained = FALSE)
+
+
+```
+
+***
+
+### Example: End Result
+```{r,results='asis',comment=NA}
+cat('<iframe src="./mean_states.html" width=100%, height=600></iframe>')
+```
+
+---  .class &vertical 
+
+### rCharts: D3 in R
+
+> - Create and customize interactive visualizations
+> - Gives access to multiple D3 libraries
+> - Easy to make and share
+
+***
+
+### A Lot from a Little
+
+```{r tobaccoMapFake,cache=FALSE, results = 'asis', comment = NA,eval=FALSE}
+library(rCharts)
+library(knitr)
+#read in csv
+tobacco <- fread(
+  "C:/Users/SBronder/Documents/Projects/prettyGraphs/tobacco.csv",header=TRUE)
+# Source:
+# https://research.stlouisfed.org/fred2/series/M0188AUSM149NNBR
+
+# Convert characters to dates in seconds
+  tobacco[, dates :=  as.numeric(
+  as.POSIXct(tobacco$dates, origin="1929-06-14")) * 1000]
+
+```
+
+<!---
+This actually runs
+-->
+```{r tobaccoMapReal,cache=FALSE, results = 'asis', comment = NA,echo=FALSE}
+library(rCharts)
+library(knitr)
+#read in csv
+tobacco <- fread(
+  "C:/Users/SBronder/Documents/Projects/prettyGraphs/tobacco.csv",header=TRUE)
+# Source:
+# https://research.stlouisfed.org/fred2/series/M0188AUSM149NNBR
+
+# Convert characters to dates in seconds
+invisible(
+  tobacco[, dates :=  as.numeric(
+  as.POSIXct(tobacco$dates, origin="1929-06-14")) * 1000]
+  )
+```
+
+```{r tobaccoChart2, cache=FALSE,warning=FALSE,echo=FALSE,results='asis'}
+stargazer::stargazer(as.data.frame(tobacco$Tobacco_Consumption),type="html",flip = TRUE)
+```
+***
+
+### Making FRED plots
+```{r tobaccoChart,cache=FALSE}
+# use rCharts to access Highcharts d3 library
+h1 <- hPlot( 
+  Tobacco_Consumption ~ dates,
+  data = as.data.frame(tobacco),
+  type = "line",
+  title = "Tobacco Consumption, Manufactured Tobacco Supplies for United States"
+           )
+# Set type for x/y axis
+h1$xAxis(type = "datetime")
+h1$yAxis(title = list(text = "Tobacco Consumption in Millions lb."))
+# Allow zoom
+h1$chart(zoomType = "x")
+h1$tooltip(formatter = # Kimm - how to make custom tooltip
+              "#! function() { return 'Date: '     + 
+                              Highcharts.dateFormat('%b/%e/%Y',
+                                                    new Date(this.x)) +
+                              '<br>' +'Consumption: ' + this.point.y; } !#")
+
+```
+
+`$object` comes from the [highchart's API](http://api.highcharts.com/highcharts) 
+
+***
+
+### Making FRED plots
+
+```{r tobaccoMap2,cache=FALSE, results = 'asis', comment = NA,echo=FALSE}
+h1$show('inline', include_assets = TRUE, standalone = TRUE)
+```
+
+***
+
+### Making Bubble Chart
+
+```{r, bubble, cache=FALSE,comment = NA,warning=FALSE}
+a <- hPlot(Pulse ~ Height, data = MASS::survey, type = "bubble",
+           title = "Zoom demo", subtitle = "bubble chart",
+           size = "Age", group = "Exer")
+
+a$chart(zoomType = "xy")
+a$exporting(enabled = T)
+```
+
+***
+
+### Making Bubble Chart
+
+```{r,bubble2,cache=FALSE,results='asis',comment=NA,echo=FALSE}
+a$show('inline',include_assets=TRUE,standalone= TRUE)
+```
+
+
+```{r,echo=FALSE}
+hook1 <- function(x){ gsub("```\n*```r*\n*", "", x) }
+hook2 <- function(x){ gsub("```\n+```\n", "", x) }
+knit_hooks$set(document = hook2)
+```
+
+***
+
+## Example App
+
+<iframe src="https://johnricco.shinyapps.io/metro_walksheds/" style="border: none; width: 1200px; height: 900px"></iframe>
+
+
+---  .class &vertical 
+
+## Natural Language Processing
+
+
+```{r real_stuff,cache=FALSE,echo=FALSE}
+library(tm)
+library(slam)
+library(wordcloud)
+library(stm)
+library(LDAvis)
+docsDowntown <- read.csv("Z:/BAGroup/Share/SBronder/prettyGraphs_old/Pens_Tweets_Downtown_Pgh.csv",header=TRUE,sep=",",
+                         fileEncoding= "native.enc",stringsAsFactors = FALSE)
+
+docsDowntown$text <- gsub("â€","",docsDowntown$text)
+docsDowntown$text <- gsub("â","",docsDowntown$text)
+docsDowntown$text <- gsub("\n","",docsDowntown$text)
+docsDowntown$text <- gsub("-"," to ",docsDowntown$text)
+docsDowntown$text <- gsub("&gt;",">",docsDowntown$text)
+docsDowntown$text <- gsub("&lt;","<",docsDowntown$text)
+docsDowntown$text <- gsub("\\", "", docsDowntown$text,fixed=TRUE)
+
+corpus <- VCorpus(VectorSource(docsDowntown$text))
+
+twt_dtm <- DocumentTermMatrix(corpus , control = list(stemming = TRUE, minWordLength = 1, removePunctuation = TRUE))
+
+twt_dtm <- twt_dtm[,which(colnames(twt_dtm) != "fuck")]
+twt_dtm <- twt_dtm[,which(colnames(twt_dtm) != "damn")]
+twt_dtm <- twt_dtm[,which(colnames(twt_dtm) != "hell")]
+twt_dtm <- twt_dtm[,which(colnames(twt_dtm) != "shit")]
+
+
+
+twt_dtm <- DocumentTermMatrix(corpus , control = list(stemming = TRUE, minWordLength = 1, removePunctuation = TRUE))
+
+
+term_tfidf <- tapply(twt_dtm$v/row_sums(twt_dtm)[twt_dtm$i], twt_dtm$j, mean) *
+  log2(nDocs(twt_dtm)/col_sums(twt_dtm > 0))
+
+
+
+twt_dtms <- twt_dtm[, term_tfidf >= 1]
+twt_dtms <- twt_dtms[row_sums(twt_dtms) > 0,]
+
+ 
+
+
+```
+
+> - The application of statistical modeling to unstructured text data (Corpora)
+> - Use: Grouping documents, search, inference prediction
+
+***
+
+### NLP: Data Structure
+
+> - Corpus - Collection of text with similar attributes
+> - Document Term Matrix: Word counts per document
+>   * Rows: Documents
+>   * Columns: Words
+
+***
+
+### NLP: Making Corpus
+
+```{r grab_data,eval=FALSE}
+# Read in csv
+docsDowntown <- read.csv("Z:/BAGroup/Share/SBronder/prettyGraphs_old/Pens_Tweets_Downtown_Pgh.csv",header=TRUE,sep=",",
+                         fileEncoding= "native.enc",stringsAsFactors = FALSE)
+
+# Create corpus
+corpus <- VCorpus(VectorSource(docsDowntown$text))
+
+# Create Document Term Matrix + cleaning
+twt_dtm <- DocumentTermMatrix(corpus , control = list(stemming = TRUE,
+                                                      minWordLength = 1,
+                                                      removePunctuation = TRUE))
+
+```
+ 
+***
+
+### NLP: Cleaning
+
+> - Stemming
+> - Bagging
+> - Stop words?
+<ul class='incremental'>
+  <li class='fragment'>Maybe not</li>
+  <li class='fragment'>He is the king of Spain</li>
+  <li class='fragment'>He and the king are from Spain</li>
+  <li class='fragment'> Rm Stops: "he king Spain"</li>
+</ul>
+
+
+
+***
+
+### NLP: TFIDF
+<ul class='incremental'>
+  <li class='fragment'>Term Frequency-Inverse Document Frequency</li>
+  <li class='fragment'>Most common words across documents</li>
+</ul>
+  
+```{r clean,eval=FALSE}
+
+# Create term frequency-inverse document frequency 
+term_tfidf <- tapply(twt_dtm$v/row_sums(twt_dtm)[twt_dtm$i], twt_dtm$j, mean) *
+  log2(nDocs(twt_dtm)/col_sums(twt_dtm > 0))
+
+```
+
+```{r term_charts, cache=FALSE,warning=FALSE,echo=FALSE,results='asis'}
+stargazer::stargazer(as.data.frame(term_tfidf),type='html',flip = TRUE)
+```
+
+***
+
+### NLP: TF-IDF Scores
+```{r densityPlot,cache=FALSE,echo=FALSE,results='asis',comment=NA}
+ term_density <- density(term_tfidf)
+ term_density <- data.frame(x= term_density$x, y = term_density$y)
+ term_density$Var <- "tf-idf"
+ dens <- nPlot(x = "x", y = "y", data = term_density, type = "lineChart")
+ dens$chart(tooltipContent = "#! function(key, x, y){ 
+            return 'x: ' + x 
+              } !#")
+ dens$show('inline',include_assets=TRUE,standalone= TRUE)
+```
+
+```{r returnDTMFake,cache=FALSE,eval=FALSE}
+# Only take words with a score > 1 and whose rows sum to zero
+twt_dtms <- twt_dtm[, term_tfidf >= 1]
+twt_dtms <- twt_dtms[row_sums(twt_dtms) > 0,]
+summary(col_sums(twt_dtms))
+```
+
+***
+
+### NLP: WordClouds
+
+```{r wordcloud,cache=FALSE,results='asis',comment=NA}
+# Return frequency table for words showing up
+freq <- sort(col_sums(twt_dtms, decreasing = F))
+wordcloud(names(freq), freq, max.words=100,
+          min.freq = 80,colors=brewer.pal(6, "Dark2"))
+```
+
+***
+
+### NLP: Correlations between words
+
+```{r corrText,cache=FALSE}
+plot(twt_dtms,terms=findFreqTerms(twt_dtms, lowfreq=220)[1:20],corThreshold=0.001)
+```
+
+--- .class &vertical 
+
+### NLP: Topic Models
+
+> - NLP model for finding abstract "topics" that occur in a corpus
+<ul class='incremental'>
+  <li class='fragment'>Soft clustering technique</li>
+  <li class='fragment'>Helps classify unstructured data</li>
+  <li class='fragment'>Many unanswered questions</li>
+</ul>
+
+***
+
+### NLP: Graph for topic model
+[Link if iframe is broken](http://bl.ocks.org/Stevo15025/raw/d1f5a9ccbb36784ac9e2/#topic=0&lambda=1&term=now)
+
+<iframe src="http://bl.ocks.org/Stevo15025/raw/d1f5a9ccbb36784ac9e2/#topic=0&lambda=1&term=now" style="border: none; width: 1200px; height: 1000px"></iframe>
+
+---
+
+## Resouces for Learning R
+
+> - [Data Mining with R](http://www.dainf.ct.utfpr.edu.br/~kaestner/Mineracao/RDataMining/Data%20Mining%20with%20R-Kumar.pdf)
+> - [Stackoverflow](http://stackoverflow.com/questions/tagged/r?sort=frequent&pageSize=50)
+> - [NLP](http://onepager.togaware.com/TextMiningO.pdf)
+> - [Datacamp](https://www.datacamp.com/courses/free-introduction-to-r)
+> - [R-bloggers](http://www.r-bloggers.com/)
+
+
